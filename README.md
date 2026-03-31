@@ -14,7 +14,7 @@ Selamat datang di repository saya! Repository ini dibuat khusus sebagai tempat d
 Berikut adalah daftar tugas dan materi yang sudah dikerjakan dan diunggah ke dalam repository ini:
 
 * [x] **Jobsheet 1:** Jobsheet 01: Dasar Bahasa Pemrograman Python
-* [x] **Jobsheet 2:** 
+* [x] **Jobsheet 2:** Jobsheet 02: Kelas dan Fungsi pada bahasa pemrograman Python
 * [ ] **Jobsheet 3:**
 * [ ] **Jobsheet 4:**
 
