@@ -15,7 +15,7 @@ Berikut adalah daftar tugas dan materi yang sudah dikerjakan dan diunggah ke dal
 
 * [x] **Jobsheet 1:** Dasar Bahasa Pemrograman Python
 * [x] **Jobsheet 2:** Kelas dan Fungsi pada bahasa pemrograman Python
-* [ ] **Jobsheet 3:**
+* [x] **Jobsheet 3:** Konstruktor, Destruktor, dan Enkapsulasi
 * [ ] **Jobsheet 4:**
 
 *(Catatan: Folder/file source code dan laporan untuk masing-masing tugas tersedia di dalam repository ini sesuai dengan penamaan jobsheet-nya).*
