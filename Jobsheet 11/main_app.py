@@ -21,22 +21,20 @@ def format_rp(angka):
 try:
     from model import Transaksi
     from manajer_anggaran import AnggaranHarian
-    from konfigurasi import KATEGORI_PENGELUARAN # Ambil list kategori
+    from konfigurasi import KATEGORI_PENGELUARAN
 except ImportError as e:
     st.error(f"Gagal mengimpor modul: {e}. Pastikan file.py lain ada.")
     st.stop()
 
 st.set_page_config(page_title="Catatan Pengeluaran", layout="wide", initial_sidebar_state="expanded")
 
-# --- Inisialisasi Pengelola Anggaran (Gunakan Cache) ---
 @st.cache_resource
 def get_anggaran_manager():
     print(">>> STREAMLIT: (Cache Resource) Menginisialisasi AnggaranHarian...")
-    return AnggaranHarian() # Ini akan memicu cek DB/Tabel di __init__
+    return AnggaranHarian()
 
 anggaran = get_anggaran_manager()
 
-# --- Fungsi Halaman/UI ---
 def halaman_input(anggaran: AnggaranHarian):
     st.header("Tambah Pengeluaran Baru")
     with st.form("form_transaksi_baru", clear_on_submit=True):
@@ -68,17 +66,62 @@ def halaman_input(anggaran: AnggaranHarian):
 
 def halaman_riwayat(anggaran: AnggaranHarian):
     st.subheader("Detail Semua Transaksi")
-    if st.button("Refresh Riwayat"):
-        st.cache_data.clear()
-        st.rerun()
+
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🔄 Refresh Riwayat"):
+            st.cache_data.clear()
+            st.rerun()
+
     with st.spinner("Memuat riwayat..."):
         df_transaksi = anggaran.get_dataframe_transaksi()
+
     if df_transaksi is None:
         st.error("Gagal ambil riwayat.")
     elif df_transaksi.empty:
         st.info("Belum ada transaksi.")
     else:
         st.dataframe(df_transaksi, use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+        st.subheader("🗑️ Hapus Transaksi")
+
+        # Pake session_state buat konfirmasi hapus
+        if 'konfirmasi_hapus' not in st.session_state:
+            st.session_state.konfirmasi_hapus = False
+        if 'id_hapus' not in st.session_state:
+            st.session_state.id_hapus = None
+
+        col_hapus1, col_hapus2 = st.columns([1, 2])
+        with col_hapus1:
+            id_hapus = st.number_input("ID Transaksi Hapus:", min_value=1, step=1, key="input_id_hapus")
+        with col_hapus2:
+            st.write("") # Spacer
+            st.write("")
+            if st.button("Hapus Transaksi Terpilih", type="secondary"):
+                st.session_state.konfirmasi_hapus = True
+                st.session_state.id_hapus = id_hapus
+
+        if st.session_state.konfirmasi_hapus:
+            st.warning(f"Yakin mau hapus transaksi ID {st.session_state.id_hapus}? Aksi ini tidak bisa dibatalkan!", icon="⚠️")
+            col_konf1, col_konf2, col_konf3 = st.columns([1, 1, 3])
+            with col_konf1:
+                if st.button("Ya, Konfirmasi Hapus", type="primary"):
+                    with st.spinner("Menghapus..."):
+                        if anggaran.hapus_transaksi(st.session_state.id_hapus):
+                            st.success(f"Transaksi ID {st.session_state.id_hapus} berhasil dihapus!", icon="✅")
+                            st.session_state.konfirmasi_hapus = False
+                            st.session_state.id_hapus = None
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            st.error(f"Gagal hapus transaksi ID {st.session_state.id_hapus}. Pastikan ID benar.", icon="❌")
+                            st.session_state.konfirmasi_hapus = False
+            with col_konf2:
+                if st.button("Batal"):
+                    st.session_state.konfirmasi_hapus = False
+                    st.session_state.id_hapus = None
+                    st.rerun()
 
 def halaman_ringkasan(anggaran: AnggaranHarian):
     st.subheader("Ringkasan Pengeluaran")
@@ -89,7 +132,28 @@ def halaman_ringkasan(anggaran: AnggaranHarian):
     tanggal_filter = None
     label_periode = "(Semua Waktu)"
 
-    # Lanjutin logic ringkasan di sini sesuai Jobsheet...
+    if pilihan_periode == "Hari Ini":
+        tanggal_filter = datetime.date.today()
+        label_periode = f"({tanggal_filter.strftime('%d %b %Y')})"
+    elif pilihan_periode == "Pilih Tanggal":
+        tanggal_filter = st.date_input("Pilih Tanggal:", value=datetime.date.today())
+        label_periode = f"({tanggal_filter.strftime('%d %b %Y')})"
+
+    total = anggaran.hitung_total_pengeluaran(tanggal_filter)
+    st.metric(label=f"Total Pengeluaran {label_periode}", value=format_rp(total))
+
+    st.markdown("---")
+    st.subheader(f"Pengeluaran per Kategori {label_periode}")
+    data_kategori = anggaran.get_pengeluaran_per_kategori(tanggal_filter)
+
+    if data_kategori:
+        df_kat = pd.DataFrame(list(data_kategori.items()), columns=['Kategori', 'Total'])
+        df_kat['Total (Rp)'] = df_kat['Total'].apply(format_rp)
+        st.dataframe(df_kat[['Kategori', 'Total (Rp)']], use_container_width=True, hide_index=True)
+
+        st.bar_chart(df_kat.set_index('Kategori')['Total'])
+    else:
+        st.info(f"Tidak ada data pengeluaran {label_periode}.")
 
 def main():
     st.sidebar.title("Menu")
