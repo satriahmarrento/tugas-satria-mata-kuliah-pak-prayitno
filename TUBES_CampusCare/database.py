@@ -52,12 +52,17 @@ class Database:
                 return
 
             # Data dummy dibuat sekali saat database masih kosong.
+            import hashlib
+            dummy_users_hashed = [
+                (u[0], hashlib.sha256(u[1].encode()).hexdigest(), u[2], u[3])
+                for u in DATA_USER_DUMMY
+            ]
             conn.executemany(
                 """
                 INSERT INTO users (username, password, nama, peran)
                 VALUES (?, ?, ?, ?)
                 """,
-                DATA_USER_DUMMY,
+                dummy_users_hashed,
             )
             conn.executemany(
                 """
@@ -70,15 +75,23 @@ class Database:
             conn.commit()
 
     def ambil_user_login(self, username, password):
+        import hashlib
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
         with self.koneksi() as conn:
-            return conn.execute(
+            user = conn.execute(
                 """
-                SELECT id_user, username, nama, peran
+                SELECT id_user, username, nama, peran, password
                 FROM users
-                WHERE username = ? AND password = ?
+                WHERE username = ?
                 """,
-                (username, password),
+                (username,),
             ).fetchone()
+            if user:
+                # Support both hashed and legacy plaintext passwords
+                stored_password = user["password"]
+                if stored_password == password_hash or stored_password == password:
+                    return user
+            return None
 
     def username_sudah_ada(self, username):
         with self.koneksi() as conn:
@@ -89,6 +102,8 @@ class Database:
             return data_user is not None
 
     def tambah_user(self, username, password, nama, peran):
+        import hashlib
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
         with self.koneksi() as conn:
             try:
                 cursor = conn.execute(
@@ -96,7 +111,7 @@ class Database:
                     INSERT INTO users (username, password, nama, peran)
                     VALUES (?, ?, ?, ?)
                     """,
-                    (username, password, nama, peran),
+                    (username, password_hash, nama, peran),
                 )
                 conn.commit()
                 return cursor.lastrowid
@@ -193,6 +208,15 @@ class Database:
             cursor = conn.execute(
                 "UPDATE laporan SET rating = ? WHERE id_laporan = ?",
                 (rating, id_laporan),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def hapus_laporan(self, id_laporan):
+        with self.koneksi() as conn:
+            cursor = conn.execute(
+                "DELETE FROM laporan WHERE id_laporan = ?",
+                (id_laporan,),
             )
             conn.commit()
             return cursor.rowcount > 0

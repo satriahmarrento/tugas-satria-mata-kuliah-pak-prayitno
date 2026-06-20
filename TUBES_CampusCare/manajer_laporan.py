@@ -65,6 +65,27 @@ class ManajerLaporan:
             )
         return berhasil
 
+    def hapus_laporan(self, id_laporan, id_user, peran):
+        from konfigurasi import PERAN_MAHASISWA, STATUS_BARU
+        laporan = self.cari_laporan(id_laporan)
+        if laporan is None:
+            raise ValueError("Laporan tidak ditemukan.")
+
+        if peran == PERAN_MAHASISWA:
+            if laporan.id_mahasiswa != id_user:
+                raise ValueError("Anda tidak berhak menghapus laporan ini.")
+            if laporan.status.nama != STATUS_BARU:
+                raise ValueError("Laporan yang sedang diproses atau selesai tidak bisa dibatalkan.")
+
+        berhasil = self.database.hapus_laporan(id_laporan)
+        if berhasil:
+            self.notifikasi.kirim(
+                "petugas",
+                f"Laporan ID {id_laporan} di lokasi {laporan.lokasi} telah dibatalkan oleh {laporan.nama_mahasiswa}.",
+            )
+        return berhasil
+
+
     def _validasi_status(self, status_baru):
         if status_baru not in (STATUS_BARU, STATUS_DIPROSES, STATUS_SELESAI):
             raise ValueError("Status tidak valid.")

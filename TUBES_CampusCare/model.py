@@ -20,6 +20,9 @@ class Mahasiswa(User):
     def buat_laporan(self, manajer_laporan, lokasi, deskripsi, foto_path):
         return manajer_laporan.tambah_laporan(self.id_user, lokasi, deskripsi, foto_path)
 
+    def batalkan_laporan(self, manajer_laporan, id_laporan):
+        return manajer_laporan.hapus_laporan(id_laporan, self.id_user, self.peran)
+
 
 class Petugas(User):
     def update_status_laporan(self, manajer_laporan, id_laporan, status_baru):
@@ -90,6 +93,24 @@ class Notifikasi(ABC):
 class NotifikasiConsole(Notifikasi):
     def kirim(self, penerima, pesan):
         print(f"[NOTIFIKASI] Untuk {penerima}: {pesan}")
+
+
+class NotifikasiToast(Notifikasi):
+    def kirim(self, penerima, pesan):
+        import streamlit as st
+        # 1. Tampilkan live toast
+        try:
+            st.toast(f"🔔 {pesan}")
+        except Exception:
+            pass
+        # 2. Simpan di session state agar bisa dibaca di dashboard
+        if "notifikasi_list" not in st.session_state:
+            st.session_state.notifikasi_list = []
+        st.session_state.notifikasi_list.insert(0, {
+            "penerima": penerima,
+            "pesan": pesan,
+            "waktu": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
 
 
 class Laporan:
